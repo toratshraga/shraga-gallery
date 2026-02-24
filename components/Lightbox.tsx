@@ -24,7 +24,7 @@ export default function Lightbox({
 
     try {
       // 1. CONSTRUCT FILENAME
-      // Prefix Rabbis with 'R-' and keep Students as is
+      // Map names to include "R-" for Rabbis and use only first names for the file slug
       const formattedRabbis = rabbiNames.map(name => `R-${name.split(' ')[0]}`);
       const formattedStudents = studentNames.map(name => name.split(' ')[0]);
       
@@ -32,18 +32,24 @@ export default function Lightbox({
       
       let peopleSlug = '';
       if (allPeople.length > 0) {
-        // Take up to 3 names for the filename, joined by dashes
-        peopleSlug = '-' + allPeople.slice(0, 3).join('-');
+        // Take the first 2 people for the filename to keep it clean
+        peopleSlug = '-' + allPeople.slice(0, 2).join('-');
+        
+        // If there are more than 2 people total, append the suffix
+        if (allPeople.length > 2) {
+          peopleSlug += '-and-others';
+        }
       }
 
-      // Remove spaces for the filename
+      // Format event name for URL/File safety (replace spaces with dashes)
       const cleanEvent = (eventName || 'Gallery').replace(/\s+/g, '-');
       
-      // Note: Removed uniqueId. OS will handle duplicates with (1), (2), etc.
+      // Final filename: e.g., "Chanukah-R-Moishe-Avi-and-others.jpg"
+      // No random string: OS will handle duplicates with (1), (2), etc.
       const fileName = `${cleanEvent}${peopleSlug}.jpg`;
 
       // 2. FETCH FILE WITH CORS FIXES
-      // Cache buster 't=' forces a fresh fetch to avoid stale CORS headers
+      // Cache buster 't=' forces a fresh fetch to avoid S3 CORS caching issues
       const fetchUrl = `${src}${src.includes('?') ? '&' : '?'}t=${Date.now()}`;
       
       const response = await fetch(fetchUrl, {
@@ -68,7 +74,7 @@ export default function Lightbox({
       window.URL.revokeObjectURL(blobUrl);
     } catch (error) {
       console.error("Download failed:", error);
-      // Fallback: Open in new tab
+      // Fallback: Just open the image in a new tab if the script fails
       window.open(src, '_blank');
     } finally {
       setIsDownloading(false);
@@ -86,7 +92,7 @@ export default function Lightbox({
         &times;
       </button>
 
-      {/* Main Image */}
+      {/* Main Image Container */}
       <div className="relative max-w-[90vw] max-h-[70vh] flex items-center justify-center shadow-2xl">
         <img 
           src={src} 
@@ -102,14 +108,18 @@ export default function Lightbox({
             {eventName || 'Event Photo'}
           </h2>
           
-          {/* Displaying names with R- prefix in the UI as well */}
+          {/* Display tags in UI: Amber for Rabbis (with R-), Blue for Students */}
           {(studentNames.length > 0 || rabbiNames.length > 0) && (
             <div className="flex flex-wrap justify-center gap-2 mt-2">
               {rabbiNames.map((name, i) => (
-                <span key={`r-${i}`} className="text-amber-400 text-sm font-bold">R- {name}</span>
+                <span key={`r-${i}`} className="text-amber-400 text-sm font-bold bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20">
+                  R- {name}
+                </span>
               ))}
               {studentNames.map((name, i) => (
-                <span key={`s-${i}`} className="text-blue-400 text-sm">{name}</span>
+                <span key={`s-${i}`} className="text-blue-400 text-sm bg-blue-400/10 px-2 py-0.5 rounded border border-blue-400/20">
+                  {name}
+                </span>
               ))}
             </div>
           )}
@@ -134,7 +144,7 @@ export default function Lightbox({
         </button>
         
         <p className="text-white/20 text-[10px] italic">
-          High-res download will be named: {eventName || 'Event'}-Names.jpg
+          High-res files are named by event and people tagged.
         </p>
       </div>
     </div>
