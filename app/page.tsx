@@ -28,7 +28,10 @@ export default function GalleryPage({ searchParams }: Props) {
   const rabbiIds = params.rabbiId ? params.rabbiId.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
   const currentEvent = params.event || '';
 
+  // PARENT VIEW LOGIC: Only show personalized banner if one specific student is targeted
   const isParentView = studentIds.length === 1 && rabbiIds.length === 0 && !currentEvent;
+  // GOLD MATCH LOGIC: Detecting if we are looking for a specific alumni/rabbi duo
+  const isGoldMatch = studentIds.length === 1 && rabbiIds.length === 1;
 
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [events, setEvents] = useState<string[]>([]);
@@ -41,9 +44,9 @@ export default function GalleryPage({ searchParams }: Props) {
   const s3Prefix = "https://yeshiva-photos.s3.eu-west-2.amazonaws.com/";
   const observerRef = useRef<HTMLDivElement | null>(null);
 
-  // 1. Fetch Student Name for Parent Banner (Ensures accuracy)
+  // 1. Fetch Student Name (Direct from DB for banner accuracy)
   useEffect(() => {
-    if (isParentView && studentIds[0]) {
+    if ((isParentView || isGoldMatch) && studentIds[0]) {
       async function getStudentName() {
         const { data } = await supabase
           .from('students')
@@ -54,9 +57,9 @@ export default function GalleryPage({ searchParams }: Props) {
       }
       getStudentName();
     }
-  }, [isParentView, studentIds]);
+  }, [isParentView, isGoldMatch, studentIds]);
 
-  // 2. Fetch Event Names
+  // 2. Fetch Event Names (For filter dropdown)
   useEffect(() => {
     if (isParentView) return;
     async function getEventNames() {
@@ -66,15 +69,24 @@ export default function GalleryPage({ searchParams }: Props) {
     getEventNames();
   }, [isParentView]);
 
-  // 3. Fetch Photos
+  // 3. Main Fetch Photo Query (Including the "Gold" intersection logic)
   useEffect(() => {
     async function getPhotos() {
       setLoading(true);
       setVisibleCount(50); 
       let query = supabase.from('gallery_display_view').select('*').order('created_at', { ascending: false });
-      if (studentIds.length > 0) query = query.contains('student_ids', studentIds);
-      if (rabbiIds.length > 0) query = query.contains('rabbi_ids', rabbiIds);
+
+      if (studentIds.length > 0 && rabbiIds.length > 0) {
+        // GOLD MATCH: Find photos containing BOTH
+        query = query.contains('student_ids', studentIds).contains('rabbi_ids', rabbiIds);
+      } else {
+        // Standard Filtering
+        if (studentIds.length > 0) query = query.contains('student_ids', studentIds);
+        if (rabbiIds.length > 0) query = query.contains('rabbi_ids', rabbiIds);
+      }
+      
       if (currentEvent) query = query.eq('event_name', currentEvent);
+
       const { data, error } = await query;
       if (!error) setPhotos(data || []);
       setLoading(false);
@@ -82,7 +94,7 @@ export default function GalleryPage({ searchParams }: Props) {
     getPhotos();
   }, [params.studentId, params.rabbiId, params.event]);
 
-  // 4. Infinite Scroll
+  // 4. Infinite Scroll Logic
   useEffect(() => {
     if (loading) return;
     const observer = new IntersectionObserver((entries) => {
@@ -152,18 +164,18 @@ export default function GalleryPage({ searchParams }: Props) {
 
       <main className="max-w-7xl mx-auto p-4 md:p-10">
         
-        {/* PARENT MODE: Personalized Greeting Banner */}
-        {isParentView && (
+        {/* PERSONALIZED BANNER (Parent View or Gold Connection) */}
+        {(isParentView || isGoldMatch) && (
           <div className="mb-12 animate-in fade-in zoom-in-95 duration-1000">
             <div className="bg-[#003366] rounded-3xl p-8 md:p-24 text-center text-white shadow-2xl border-b-[16px] border-[#C5A059] relative overflow-hidden">
               <div className="absolute inset-0 opacity-5 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/pinstriped-suit.png')]"></div>
               
               <div className="relative z-10">
                 <p className="text-[#C5A059] font-serif italic text-xl md:text-4xl mb-4 md:mb-8">
-                  Wishing you and your family a
+                  {isGoldMatch ? "Celebrating a Special Connection" : "Wishing you and your family a"}
                 </p>
                 <h2 className="text-5xl md:text-9xl font-serif font-extrabold mb-8 md:mb-14 tracking-tight leading-tight">
-                  Chag Kasher <br className="md:hidden" /> V’Samach
+                  {isGoldMatch ? "Shraga Gold" : "Chag Kasher V’Samach"}
                 </h2>
                 <div className="w-24 md:w-48 h-1 bg-[#C5A059] mx-auto mb-8 md:mb-14"></div>
                 <p className="text-white/95 text-lg md:text-4xl font-light max-w-5xl mx-auto leading-relaxed px-4">
@@ -206,6 +218,10 @@ export default function GalleryPage({ searchParams }: Props) {
                 >
                   <div className="relative aspect-[4/5] bg-slate-100 overflow-hidden">
                     <img src={fullUrl} alt="" loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
+                    {/* Visual Gold Indicator for Rabbi+Student Photos */}
+                    {(studentIds.length > 0 && rabbiIds.length > 0) && (
+                       <div className="absolute top-4 right-4 bg-[#C5A059] text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg">Gold Match</div>
+                    )}
                     <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   </div>
                   <div className="p-5 border-t border-slate-50">
