@@ -12,7 +12,6 @@ interface Photo {
   event_name: string;
   student_ids: number[];
   rabbi_ids: number[];
-  // These come from the SQL View we created
   student_names?: string[];
   rabbi_names?: string[];
 }
@@ -33,14 +32,13 @@ export default function GalleryPage({ searchParams }: Props) {
   const [events, setEvents] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [visibleCount, setVisibleCount] = useState(50);
-  
-  // State for the selected photo object
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [isMatchMakerOpen, setIsMatchMakerOpen] = useState(false);
 
   const s3Prefix = "https://yeshiva-photos.s3.eu-west-2.amazonaws.com/";
   const observerRef = useRef<HTMLDivElement | null>(null);
 
+  // 1. Fetch Event Names
   useEffect(() => {
     async function getEventNames() {
       const { data } = await supabase.from('unique_event_names').select('event_name');
@@ -49,13 +47,14 @@ export default function GalleryPage({ searchParams }: Props) {
     getEventNames();
   }, []);
 
+  // 2. Fetch Photos from View
   useEffect(() => {
     async function getPhotos() {
       setLoading(true);
       setVisibleCount(50); 
       
       let query = supabase
-        .from('gallery_display_view') // CHANGED: Pull from View instead of Table
+        .from('gallery_display_view') 
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -70,6 +69,7 @@ export default function GalleryPage({ searchParams }: Props) {
     getPhotos();
   }, [params.studentId, params.rabbiId, params.event]);
 
+  // 3. Infinite Scroll
   useEffect(() => {
     if (loading) return;
     const observer = new IntersectionObserver(
@@ -94,7 +94,6 @@ export default function GalleryPage({ searchParams }: Props) {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-      {/* FULL LIGHTBOX CONFIGURATION */}
       {selectedPhoto && (
         <Lightbox 
           src={`${s3Prefix}${selectedPhoto.storage_path.split('/').map(s => encodeURIComponent(s)).join('/')}`} 
@@ -116,7 +115,7 @@ export default function GalleryPage({ searchParams }: Props) {
           <div className="flex flex-wrap items-center justify-center md:justify-end gap-3 w-full md:w-auto">
             <button 
               onClick={() => setIsMatchMakerOpen(true)}
-              className="bg-blue-600 text-white px-5 py-2 rounded-full text-xs font-bold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-md active:scale-95"
+              className="bg-blue-600 text-white px-5 py-2 rounded-full text-xs font-bold hover:bg-blue-700 transition-all shadow-md"
             >
               🔍 Find Together
             </button>
@@ -125,24 +124,20 @@ export default function GalleryPage({ searchParams }: Props) {
               <select 
                 value={currentEvent}
                 onChange={handleEventChange}
-                className="appearance-none bg-slate-100 border-none rounded-full px-5 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer pr-10"
+                className="appearance-none bg-slate-100 border-none rounded-full px-5 py-2 text-xs font-bold text-slate-700 outline-none pr-10"
               >
                 <option value="">All Events</option>
                 {events.map((evt) => (
                   <option key={evt} value={evt}>{evt}</option>
                 ))}
               </select>
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[10px]">▼</div>
             </div>
 
             <AutocompleteSearch table="students" placeholder="Search Student..." />
             <AutocompleteSearch table="rabbis" placeholder="Search Rabbi..." />
             
             {(studentIds.length > 0 || rabbiIds.length > 0 || currentEvent) && (
-              <button 
-                onClick={() => router.push('/')} 
-                className="text-xs font-bold text-red-500 px-3 py-2 hover:bg-red-50 rounded-full transition-colors"
-              >
+              <button onClick={() => router.push('/')} className="text-xs font-bold text-red-500 px-3 py-2">
                 Clear
               </button>
             )}
@@ -152,17 +147,12 @@ export default function GalleryPage({ searchParams }: Props) {
 
       <main className="max-w-7xl mx-auto p-6 md:p-10">
         {loading ? (
-          <div className="flex justify-center py-20 animate-pulse text-blue-900 font-bold">Loading Gallery...</div>
-        ) : photos.length === 0 ? (
-          <div className="text-center py-32 bg-white rounded-3xl border-2 border-dashed border-slate-200">
-            <p className="text-slate-400 font-medium text-lg">No photos found for this selection.</p>
-          </div>
+          <div className="flex justify-center py-20 animate-pulse text-blue-900 font-bold">Loading...</div>
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {photos.slice(0, visibleCount).map((photo) => {
-                const encodedPath = photo.storage_path.split('/').map(s => encodeURIComponent(s)).join('/');
-                const fullUrl = `${s3Prefix}${encodedPath}`;
+                const fullUrl = `${s3Prefix}${photo.storage_path.split('/').map(s => encodeURIComponent(s)).join('/')}`;
 
                 return (
                   <div 
@@ -176,13 +166,22 @@ export default function GalleryPage({ searchParams }: Props) {
                     <div className="p-4">
                       <p className="text-[10px] text-slate-400 uppercase font-bold mb-2">{photo.event_name}</p>
                       <div className="flex flex-wrap gap-1.5">
-                        {/* Display Names if they exist, otherwise fallback to IDs */}
-                        {(photo.student_names || photo.student_ids || []).map((item, idx) => (
+                        {/* 1. Show Rabbis first with "R-" prefix */}
+                        {photo.rabbi_names?.map((name, idx) => (
+                          <span 
+                            key={`r-${idx}`} 
+                            className="text-[10px] font-bold px-2 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-100"
+                          >
+                            R- {name}
+                          </span>
+                        ))}
+                        {/* 2. Show Students */}
+                        {photo.student_names?.map((name, idx) => (
                           <span 
                             key={`s-${idx}`} 
                             className="text-[10px] font-bold px-2 py-0.5 rounded border bg-blue-50 text-blue-700 border-blue-100"
                           >
-                            {item}
+                            {name}
                           </span>
                         ))}
                       </div>
@@ -193,8 +192,8 @@ export default function GalleryPage({ searchParams }: Props) {
             </div>
             
             {visibleCount < photos.length && (
-              <div ref={observerRef} className="h-24 w-full flex items-center justify-center mt-10 text-slate-400 text-sm font-medium">
-                <div className="animate-bounce">Loading more photos...</div>
+              <div ref={observerRef} className="h-24 w-full flex items-center justify-center mt-10 text-slate-400 text-sm">
+                Loading more photos...
               </div>
             )}
           </>

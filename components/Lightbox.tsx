@@ -5,8 +5,8 @@ import { useState } from 'react';
 interface LightboxProps {
   src: string;
   eventName: string;
-  studentNames?: string[]; // From our new SQL View
-  rabbiNames?: string[];   // From our new SQL View
+  studentNames?: string[];
+  rabbiNames?: string[];
   onClose: () => void;
 }
 
@@ -24,27 +24,26 @@ export default function Lightbox({
 
     try {
       // 1. CONSTRUCT FILENAME
-      // Combine all names into one array
-      const allPeople = [...studentNames, ...rabbiNames];
+      // Prefix Rabbis with 'R-' and keep Students as is
+      const formattedRabbis = rabbiNames.map(name => `R-${name.split(' ')[0]}`);
+      const formattedStudents = studentNames.map(name => name.split(' ')[0]);
       
-      let peopleSlug = 'Photo';
+      const allPeople = [...formattedRabbis, ...formattedStudents];
+      
+      let peopleSlug = '';
       if (allPeople.length > 0) {
-        // Take first 2 names, use first names only to keep filename short
-        const mainNames = allPeople.slice(0, 2).map(name => name.split(' ')[0]);
-        peopleSlug = mainNames.join('-');
-        
-        // Add a suffix if there are more people tagged
-        if (allPeople.length > 2) {
-          peopleSlug += '-and-others';
-        }
+        // Take up to 3 names for the filename, joined by dashes
+        peopleSlug = '-' + allPeople.slice(0, 3).join('-');
       }
 
+      // Remove spaces for the filename
       const cleanEvent = (eventName || 'Gallery').replace(/\s+/g, '-');
-      const uniqueId = Math.random().toString(36).substring(2, 6);
-      const safeName = `${cleanEvent}-${peopleSlug}-${uniqueId}.jpg`;
+      
+      // Note: Removed uniqueId. OS will handle duplicates with (1), (2), etc.
+      const fileName = `${cleanEvent}${peopleSlug}.jpg`;
 
       // 2. FETCH FILE WITH CORS FIXES
-      // Cache buster 't=' forces a fresh fetch with the new S3 CORS headers
+      // Cache buster 't=' forces a fresh fetch to avoid stale CORS headers
       const fetchUrl = `${src}${src.includes('?') ? '&' : '?'}t=${Date.now()}`;
       
       const response = await fetch(fetchUrl, {
@@ -60,7 +59,7 @@ export default function Lightbox({
       // 3. TRIGGER DOWNLOAD
       const link = document.createElement('a');
       link.href = blobUrl;
-      link.download = safeName;
+      link.download = fileName; 
       document.body.appendChild(link);
       link.click();
       
@@ -69,7 +68,7 @@ export default function Lightbox({
       window.URL.revokeObjectURL(blobUrl);
     } catch (error) {
       console.error("Download failed:", error);
-      // Fallback: Just open the image in a new tab if everything fails
+      // Fallback: Open in new tab
       window.open(src, '_blank');
     } finally {
       setIsDownloading(false);
@@ -102,10 +101,17 @@ export default function Lightbox({
           <h2 className="text-white text-lg font-medium">
             {eventName || 'Event Photo'}
           </h2>
+          
+          {/* Displaying names with R- prefix in the UI as well */}
           {(studentNames.length > 0 || rabbiNames.length > 0) && (
-            <p className="text-white/60 text-sm mt-1">
-              With: {[...studentNames, ...rabbiNames].join(', ')}
-            </p>
+            <div className="flex flex-wrap justify-center gap-2 mt-2">
+              {rabbiNames.map((name, i) => (
+                <span key={`r-${i}`} className="text-amber-400 text-sm font-bold">R- {name}</span>
+              ))}
+              {studentNames.map((name, i) => (
+                <span key={`s-${i}`} className="text-blue-400 text-sm">{name}</span>
+              ))}
+            </div>
           )}
         </div>
 
@@ -116,10 +122,7 @@ export default function Lightbox({
         >
           {isDownloading ? (
             <>
-              <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
+              <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
               Preparing...
             </>
           ) : (
@@ -131,7 +134,7 @@ export default function Lightbox({
         </button>
         
         <p className="text-white/20 text-[10px] italic">
-          Files are named automatically based on event and people tagged.
+          High-res download will be named: {eventName || 'Event'}-Names.jpg
         </p>
       </div>
     </div>
