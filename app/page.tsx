@@ -28,6 +28,7 @@ export default function GalleryPage({ searchParams }: Props) {
   const rabbiIds = params.rabbiId ? params.rabbiId.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
   const currentEvent = params.event || '';
 
+  // PARENT VIEW LOGIC: Triggers when only one student is selected
   const isParentView = studentIds.length === 1 && rabbiIds.length === 0 && !currentEvent;
 
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -40,6 +41,7 @@ export default function GalleryPage({ searchParams }: Props) {
   const s3Prefix = "https://yeshiva-photos.s3.eu-west-2.amazonaws.com/";
   const observerRef = useRef<HTMLDivElement | null>(null);
 
+  // 1. Fetch Event Names
   useEffect(() => {
     if (isParentView) return;
     async function getEventNames() {
@@ -49,6 +51,7 @@ export default function GalleryPage({ searchParams }: Props) {
     getEventNames();
   }, [isParentView]);
 
+  // 2. Fetch Photos
   useEffect(() => {
     async function getPhotos() {
       setLoading(true);
@@ -64,6 +67,7 @@ export default function GalleryPage({ searchParams }: Props) {
     getPhotos();
   }, [params.studentId, params.rabbiId, params.event]);
 
+  // 3. Infinite Scroll
   useEffect(() => {
     if (loading) return;
     const observer = new IntersectionObserver((entries) => {
@@ -84,7 +88,7 @@ export default function GalleryPage({ searchParams }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFDFD] text-slate-900 font-sans">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans">
       {selectedPhoto && (
         <Lightbox 
           src={`${s3Prefix}${selectedPhoto.storage_path.split('/').map(s => encodeURIComponent(s)).join('/')}`} 
@@ -97,53 +101,35 @@ export default function GalleryPage({ searchParams }: Props) {
 
       {isMatchMakerOpen && <MultiSearchModal onClose={() => setIsMatchMakerOpen(false)} />}
 
-      {/* HEADER: Torat Shraga Branding */}
-      <header className="sticky top-0 z-30 bg-white border-b-2 border-[#003366] px-6 py-4 shadow-md">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div 
-            className="flex items-center gap-4 cursor-pointer" 
-            onClick={() => router.push('/')}
-          >
-            {/* Logo Placeholder - You can replace the src with the actual logo path from toratshraga.com */}
+      {/* HEADER: Official Torat Shraga Branding */}
+      <header className="sticky top-0 z-30 bg-white border-b-4 border-[#003366] px-4 md:px-8 py-4 shadow-md">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-4 md:gap-6 cursor-pointer group" onClick={() => router.push('/')}>
+            {/* LOCAL LOGO (Ensure logo.png is in /public folder) */}
             <img 
-              src="https://toratshraga.com/wp-content/uploads/2021/05/Logo.png" 
+              src="/logo.png" 
               alt="Yeshivat Torat Shraga" 
-              className="h-12 md:h-16 w-auto object-contain"
+              className="h-12 md:h-20 w-auto object-contain transition-transform group-hover:scale-105"
             />
-            <div className="h-10 w-px bg-slate-200 hidden md:block"></div>
+            <div className="h-10 w-px bg-slate-200 hidden sm:block"></div>
             <div className="flex flex-col">
-              <h1 className="text-lg font-serif font-bold text-[#003366] leading-none">
-                PHOTO GALLERY
+              <h1 className="text-sm md:text-xl font-serif font-black tracking-tight text-[#003366] leading-none uppercase">
+                Yeshivat Torat Shraga
               </h1>
-              <span className="text-[10px] font-bold text-[#C5A059] tracking-[.2em] uppercase mt-1">
-                Preserving the Shraga Experience
+              <span className="text-[9px] md:text-[11px] font-bold text-[#C5A059] tracking-[.15em] uppercase mt-1">
+                Official Photo Gallery
               </span>
             </div>
           </div>
 
           {!isParentView && (
-            <div className="flex flex-wrap items-center justify-center md:justify-end gap-3 w-full md:w-auto">
+            <div className="hidden lg:flex items-center gap-3">
               <button 
                 onClick={() => setIsMatchMakerOpen(true)}
-                className="bg-[#C5A059] text-white px-5 py-2 rounded-md text-xs font-bold hover:bg-[#B08D48] transition-all shadow-sm active:scale-95"
+                className="bg-[#C5A059] text-white px-5 py-2 rounded text-xs font-bold hover:brightness-110 transition-all shadow-md active:scale-95"
               >
                 Multi-Search
               </button>
-              
-              <div className="relative">
-                <select 
-                  value={currentEvent}
-                  onChange={handleEventChange}
-                  className="appearance-none bg-slate-50 border border-slate-200 rounded-md px-5 py-2 text-xs font-bold text-[#003366] outline-none pr-10 cursor-pointer focus:border-[#C5A059]"
-                >
-                  <option value="">All Events</option>
-                  {events.map((evt) => (
-                    <option key={evt} value={evt}>{evt}</option>
-                  ))}
-                </select>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[10px]">▼</div>
-              </div>
-
               <AutocompleteSearch table="students" placeholder="Search Students..." />
               <AutocompleteSearch table="rabbis" placeholder="Search Rabbis..." />
             </div>
@@ -151,48 +137,51 @@ export default function GalleryPage({ searchParams }: Props) {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto p-6 md:p-10">
+      <main className="max-w-7xl mx-auto p-4 md:p-10">
         
-        {/* PARENT MODE: Personalized Pre-Pesach Section */}
+        {/* PARENT MODE: Personalized Greeting Banner */}
         {isParentView && photos.length > 0 && (
-          <div className="mb-16 animate-in fade-in zoom-in-95 duration-1000">
-            <div className="bg-[#003366] rounded-xl p-8 md:p-16 text-center text-white shadow-2xl border-b-8 border-[#C5A059] relative overflow-hidden">
-              {/* Elegant Geometric Background Overlay */}
-              <div className="absolute inset-0 opacity-10 pointer-events-none">
-                <svg width="100%" height="100%"><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="1"/></pattern><rect width="100%" height="100%" fill="url(#grid)" /></svg>
-              </div>
+          <div className="mb-12 animate-in fade-in zoom-in-95 duration-1000">
+            <div className="bg-[#003366] rounded-3xl p-8 md:p-24 text-center text-white shadow-2xl border-b-[16px] border-[#C5A059] relative overflow-hidden">
+              {/* Subtle background texture */}
+              <div className="absolute inset-0 opacity-5 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/pinstriped-suit.png')]"></div>
               
               <div className="relative z-10">
-                <p className="text-[#C5A059] font-serif italic text-xl md:text-2xl mb-4">
+                <p className="text-[#C5A059] font-serif italic text-xl md:text-4xl mb-4 md:mb-8">
                   Wishing you and your family a
                 </p>
-                <h2 className="text-5xl md:text-7xl font-serif font-extrabold mb-8 tracking-tight">
-                  Chag Kasher V’Samach
+                <h2 className="text-5xl md:text-9xl font-serif font-extrabold mb-8 md:mb-14 tracking-tight leading-tight">
+                  Chag Kasher <br className="md:hidden" /> V’Samach
                 </h2>
-                <div className="w-24 h-1 bg-[#C5A059] mx-auto mb-8"></div>
-                <p className="text-white/90 text-lg md:text-2xl font-light max-w-3xl mx-auto leading-relaxed">
-                  It is a privilege to share these cherished moments of <br/>
-                  <span className="font-bold text-white border-b-2 border-[#C5A059]">
+                <div className="w-24 md:w-48 h-1 bg-[#C5A059] mx-auto mb-8 md:mb-14"></div>
+                <p className="text-white/95 text-lg md:text-4xl font-light max-w-5xl mx-auto leading-relaxed px-4">
+                  We are proud to share these snapshots of <br className="hidden md:block" />
+                  <span className="font-bold text-white border-b-4 border-[#C5A059] px-2">
                     {photos[0].student_names?.[0]}
                   </span> 
-                  <br className="md:hidden"/> as he grows and thrives at <br/>
+                  <br /> from his time here at <br className="md:hidden" />
                   <span className="font-serif italic font-medium">Yeshivat Torat Shraga</span>.
                 </p>
-                <p className="mt-12 text-sm font-bold tracking-[.3em] uppercase text-[#C5A059]">
+                <div className="mt-10 md:mt-20 text-[10px] md:text-sm font-bold tracking-[.4em] uppercase text-[#C5A059] bg-white/10 inline-block px-8 py-3 rounded-full border border-white/20">
                   {photos.length} High-Resolution Memories
-                </p>
+                </div>
               </div>
             </div>
           </div>
         )}
 
+        {/* LOADING & GALLERY GRID */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-32">
-            <div className="w-12 h-12 border-4 border-[#003366]/20 border-t-[#C5A059] rounded-full animate-spin mb-4"></div>
-            <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Loading Your Collection</p>
+          <div className="flex flex-col items-center justify-center py-40">
+            <div className="w-12 h-12 border-4 border-[#003366]/20 border-t-[#C5A059] rounded-full animate-spin mb-6"></div>
+            <p className="text-slate-400 font-bold text-xs uppercase tracking-[.3em]">Opening Archives...</p>
+          </div>
+        ) : photos.length === 0 ? (
+          <div className="text-center py-40">
+            <p className="text-slate-300 font-serif italic text-2xl">No photos found for this selection.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 md:gap-10">
             {photos.slice(0, visibleCount).map((photo) => {
               const fullUrl = `${s3Prefix}${photo.storage_path.split('/').map(s => encodeURIComponent(s)).join('/')}`;
 
@@ -200,28 +189,29 @@ export default function GalleryPage({ searchParams }: Props) {
                 <div 
                   key={photo.storage_path} 
                   onClick={() => setSelectedPhoto(photo)}
-                  className="group bg-white rounded-lg shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-200 overflow-hidden cursor-zoom-in"
+                  className="group bg-white rounded-xl shadow-sm hover:shadow-2xl transition-all duration-500 border border-slate-200 overflow-hidden cursor-zoom-in"
                 >
                   <div className="relative aspect-[4/5] bg-slate-100 overflow-hidden">
                     <img 
                       src={fullUrl} 
                       alt="" 
                       loading="lazy" 
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
                     />
+                    <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   </div>
-                  <div className="p-4 border-t border-slate-50">
-                    <p className="text-[10px] text-[#C5A059] uppercase font-black tracking-widest mb-2">
+                  <div className="p-5 border-t border-slate-50">
+                    <p className="text-[10px] text-[#C5A059] uppercase font-black tracking-widest mb-3">
                       {photo.event_name}
                     </p>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-2">
                       {photo.rabbi_names?.map((name, idx) => (
-                        <span key={`r-${idx}`} className="text-[9px] font-bold px-2 py-0.5 rounded bg-[#003366]/5 text-[#003366] border border-[#003366]/10">
+                        <span key={`r-${idx}`} className="text-[10px] font-bold px-2.5 py-1 rounded bg-[#003366] text-white shadow-sm">
                           R- {name}
                         </span>
                       ))}
                       {photo.student_names?.map((name, idx) => (
-                        <span key={`s-${idx}`} className="text-[9px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                        <span key={`s-${idx}`} className="text-[10px] font-bold px-2.5 py-1 rounded bg-slate-100 text-[#003366] border border-slate-200">
                           {name}
                         </span>
                       ))}
@@ -233,20 +223,20 @@ export default function GalleryPage({ searchParams }: Props) {
           </div>
         )}
         
-        {/* Infinite Scroll Loader */}
         {visibleCount < photos.length && (
-          <div ref={observerRef} className="h-32 w-full flex items-center justify-center mt-10">
-            <span className="text-xs font-bold text-slate-300 uppercase tracking-widest">Loading more...</span>
+          <div ref={observerRef} className="h-40 w-full flex items-center justify-center mt-10">
+            <span className="text-xs font-black text-slate-300 uppercase tracking-[.5em]">Scroll for more memories</span>
           </div>
         )}
       </main>
 
-      {/* FOOTER: Official Branding */}
-      <footer className="mt-20 py-10 bg-slate-50 border-t border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <p className="text-[#003366] font-serif font-bold text-lg mb-2">YESHIVAT TORAT SHRAGA</p>
-          <p className="text-slate-400 text-[10px] tracking-widest uppercase">
-            Built by Shraga AI &bull; Pesach {new Date().getFullYear()}
+      <footer className="mt-32 py-20 bg-[#003366] text-white text-center">
+        <div className="max-w-7xl mx-auto px-6">
+          <img src="/logo.png" alt="Torat Shraga" className="h-16 mx-auto mb-6 brightness-0 invert opacity-50" />
+          <h3 className="font-serif font-bold text-2xl mb-4 tracking-wide uppercase">Yeshivat Torat Shraga</h3>
+          <div className="w-12 h-1 bg-[#C5A059] mx-auto mb-6"></div>
+          <p className="text-white/40 text-[10px] tracking-[.6em] uppercase">
+            Curated by Shraga AI &bull; {new Date().getFullYear()}
           </p>
         </div>
       </footer>
