@@ -14,32 +14,32 @@ export default function Lightbox({ src, eventName, onClose }: LightboxProps) {
   const handleDownload = async () => {
     setIsDownloading(true);
     try {
-      // 1. Fetch the image data
+      // 1. Fetch the image data (Requires S3 CORS to be configured)
       const response = await fetch(src);
       if (!response.ok) throw new Error('Network response was not ok');
       
       const blob = await response.blob();
       
-      // 2. Create a temporary 'blob' URL
+      // 2. Create a temporary local URL for the data
       const url = window.URL.createObjectURL(blob);
       
-      // 3. Create a hidden link and click it
+      // 3. Create a hidden link and trigger the download
       const link = document.createElement('a');
       link.href = url;
       
-      // Clean up filename (e.g., "Chanukah-Photo.jpg")
+      // Create a clean filename from the event name
       const safeName = `${eventName.replace(/\s+/g, '-') || 'Shraga-Photo'}.jpg`;
       link.setAttribute('download', safeName);
       
       document.body.appendChild(link);
       link.click();
       
-      // 4. Clean up
+      // 4. Cleanup
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Download failed:", error);
-      // Fallback: Just open the image in a new tab if fetch is blocked
+      // Fallback: Just open the image in a new tab if the browser blocks the fetch
       window.open(src, '_blank');
     } finally {
       setIsDownloading(false);
@@ -51,7 +51,7 @@ export default function Lightbox({ src, eventName, onClose }: LightboxProps) {
       {/* Close Button */}
       <button 
         onClick={onClose}
-        className="absolute top-6 right-6 text-white/50 hover:text-white text-4xl font-light transition-colors p-4"
+        className="absolute top-6 right-6 text-white/50 hover:text-white text-4xl font-light transition-colors p-4 z-10"
       >
         &times;
       </button>
@@ -61,13 +61,13 @@ export default function Lightbox({ src, eventName, onClose }: LightboxProps) {
         <img 
           src={src} 
           alt="Full size" 
-          className="max-w-full max-h-full object-contain rounded-lg"
+          className="max-w-full max-h-full object-contain rounded-lg border border-white/10"
         />
       </div>
 
       {/* Info & Actions */}
       <div className="mt-8 flex flex-col items-center gap-4">
-        <p className="text-white/60 text-sm font-medium tracking-widest uppercase">
+        <p className="text-white/60 text-sm font-bold tracking-widest uppercase">
           {eventName || 'General Gallery'}
         </p>
         
@@ -86,8 +86,12 @@ export default function Lightbox({ src, eventName, onClose }: LightboxProps) {
                 Processing...
               </span>
             ) : (
-              <><span>⬇</span> Download Photo</>}
-            </button>
+              <>
+                <span>⬇</span>
+                <span>Download Photo</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>
