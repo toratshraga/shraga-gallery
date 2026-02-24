@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import AutocompleteSearch from '@/components/AutocompleteSearch';
 import Lightbox from '@/components/Lightbox';
 import MultiSearchModal from '@/components/MultiSearchModal';
+import { useRouter } from 'next/navigation';
 
 interface Photo {
   storage_path: string;
@@ -14,17 +15,20 @@ interface Photo {
 }
 
 interface Props {
-  searchParams: Promise<{ studentId?: string; rabbiId?: string }>;
+  searchParams: Promise<{ studentId?: string; rabbiId?: string; event?: string }>;
 }
 
 export default function GalleryPage({ searchParams }: Props) {
   const params = use(searchParams);
+  const router = useRouter();
   
-  // Parse IDs from URL (handles "101,102")
+  // Parse filters from URL
   const studentIds = params.studentId ? params.studentId.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
   const rabbiIds = params.rabbiId ? params.rabbiId.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
+  const currentEvent = params.event || '';
 
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [events, setEvents] = useState<string[]>([]); // For the dropdown list
   const [loading, setLoading] = useState(true);
   const [visibleCount, setVisibleCount] = useState(50);
   const [activePhoto, setActivePhoto] = useState<string | null>(null);
@@ -34,6 +38,19 @@ export default function GalleryPage({ searchParams }: Props) {
   const s3Prefix = "https://yeshiva-photos.s3.eu-west-2.amazonaws.com/";
   const observerRef = useRef<HTMLDivElement | null>(null);
 
+  // 1. Fetch Unique Event Names for the Dropdown
+  useEffect(() => {
+    async function getEventNames() {
+      // Assumes you created the 'unique_event_names' view in Supabase SQL editor
+      const { data } = await supabase.from('unique_event_names').select('event_name');
+      if (data) {
+        setEvents(data.map(e => e.event_name));
+      }
+    }
+    getEventNames();
+  }, []);
+
+  // 2. Fetch Photos based on all active filters
   useEffect(() => {
     async function getPhotos() {
       setLoading(true);
@@ -44,12 +61,14 @@ export default function GalleryPage({ searchParams }: Props) {
         .select('*')
         .order('created_at', { ascending: false });
 
-      // Use .contains to find photos where ALL selected IDs are present
       if (studentIds.length > 0) {
         query = query.contains('student_ids', studentIds);
       }
       if (rabbiIds.length > 0) {
         query = query.contains('rabbi_ids', rabbiIds);
+      }
+      if (currentEvent) {
+        query = query.eq('event_name', currentEvent);
       }
 
       const { data, error } = await query;
@@ -57,8 +76,9 @@ export default function GalleryPage({ searchParams }: Props) {
       setLoading(false);
     }
     getPhotos();
-  }, [params.studentId, params.rabbiId]);
+  }, [params.studentId, params.rabbiId, params.event]);
 
+  // 3. Infinite Scroll Observer
   useEffect(() => {
     if (loading) return;
     const observer = new IntersectionObserver(
@@ -73,14 +93,23 @@ export default function GalleryPage({ searchParams }: Props) {
     return () => observer.disconnect();
   }, [loading, visibleCount, photos.length]);
 
+  // Handle Event Dropdown Change
+  const handleEventChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    if (val) urlParams.set('event', val);
+    else urlParams.delete('event');
+    
+    router.push(`/?${urlParams.toString()}`);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-      {/* Lightbox Overlay */}
       {activePhoto && (
         <Lightbox src={activePhoto} eventName={activeEvent} onClose={() => setActivePhoto(null)} />
       )}
 
-      {/* Match Maker Modal */}
       {isMatchMakerOpen && (
         <MultiSearchModal onClose={() => setIsMatchMakerOpen(false)} />
       )}
@@ -91,17 +120,33 @@ export default function GalleryPage({ searchParams }: Props) {
             SHRAGA <span className="text-slate-400 font-light">AI</span>
           </h1>
 
-          <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+          <div className="flex flex-wrap items-center justify-center md:justify-end gap-3 w-full md:w-auto">
             <button 
               onClick={() => setIsMatchMakerOpen(true)}
               className="bg-blue-600 text-white px-5 py-2 rounded-full text-xs font-bold hover:bg-blue-700 transition-all flex items-center gap-2 whitespace-nowrap shadow-md active:scale-95"
             >
               🔍 Find Together
             </button>
+            
+            {/* Event Dropdown Filter */}
+            <div className="relative">
+              <select 
+                value={currentEvent}
+                onChange={handleEventChange}
+                className="appearance-none bg-slate-100 border-none rounded-full px-5 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer pr-10"
+              >
+                <option value="">All Events</option>
+                {events.map((evt) => (
+                  <option key={evt} value={evt}>{evt}</option>
+                ))}
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[10px]">▼</div>
+            </div>
+
             <AutocompleteSearch table="students" placeholder="Search Student..." />
             <AutocompleteSearch table="rabbis" placeholder="Search Rabbi..." />
             
-            {(studentIds.length > 0 || rabbiIds.length > 0) && (
+            {(studentIds.length > 0 || rabbiIds.length > 0 || currentEvent) && (
               <button 
                 onClick={() => window.location.href='/'} 
                 className="text-xs font-bold text-red-500 px-3 py-2 hover:bg-red-50 rounded-full transition-colors"
@@ -137,8 +182,8 @@ export default function GalleryPage({ searchParams }: Props) {
                       <img src={fullUrl} alt="" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                     </div>
                     <div className="p-4">
+                      <p className="text-[10px] text-slate-400 uppercase font-bold mb-2">{photo.event_name}</p>
                       <div className="flex flex-wrap gap-1.5">
-                        {/* Array.from(new Set(...)) handles duplicate IDs in the DB to fix Key errors */}
                         {Array.from(new Set(photo.student_ids || [])).map((id) => (
                           <span 
                             key={`s-${id}`} 
@@ -162,7 +207,6 @@ export default function GalleryPage({ searchParams }: Props) {
               })}
             </div>
             
-            {/* Sentinel for Intersection Observer */}
             {visibleCount < photos.length && (
               <div ref={observerRef} className="h-24 w-full flex items-center justify-center mt-10 text-slate-400 text-sm font-medium">
                 <div className="animate-bounce">Loading more photos...</div>
