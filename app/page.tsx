@@ -12,6 +12,9 @@ interface Photo {
   event_name: string;
   student_ids: number[];
   rabbi_ids: number[];
+  // These come from the SQL View we created
+  student_names?: string[];
+  rabbi_names?: string[];
 }
 
 interface Props {
@@ -22,54 +25,43 @@ export default function GalleryPage({ searchParams }: Props) {
   const params = use(searchParams);
   const router = useRouter();
   
-  // Parse filters from URL
   const studentIds = params.studentId ? params.studentId.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
   const rabbiIds = params.rabbiId ? params.rabbiId.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
   const currentEvent = params.event || '';
 
   const [photos, setPhotos] = useState<Photo[]>([]);
-  const [events, setEvents] = useState<string[]>([]); // For the dropdown list
+  const [events, setEvents] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [visibleCount, setVisibleCount] = useState(50);
-  const [activePhoto, setActivePhoto] = useState<string | null>(null);
-  const [activeEvent, setActiveEvent] = useState<string>('');
+  
+  // State for the selected photo object
+  const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [isMatchMakerOpen, setIsMatchMakerOpen] = useState(false);
 
   const s3Prefix = "https://yeshiva-photos.s3.eu-west-2.amazonaws.com/";
   const observerRef = useRef<HTMLDivElement | null>(null);
 
-  // 1. Fetch Unique Event Names for the Dropdown
   useEffect(() => {
     async function getEventNames() {
-      // Assumes you created the 'unique_event_names' view in Supabase SQL editor
       const { data } = await supabase.from('unique_event_names').select('event_name');
-      if (data) {
-        setEvents(data.map(e => e.event_name));
-      }
+      if (data) setEvents(data.map(e => e.event_name));
     }
     getEventNames();
   }, []);
 
-  // 2. Fetch Photos based on all active filters
   useEffect(() => {
     async function getPhotos() {
       setLoading(true);
       setVisibleCount(50); 
       
       let query = supabase
-        .from('event_photos_v2')
+        .from('gallery_display_view') // CHANGED: Pull from View instead of Table
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (studentIds.length > 0) {
-        query = query.contains('student_ids', studentIds);
-      }
-      if (rabbiIds.length > 0) {
-        query = query.contains('rabbi_ids', rabbiIds);
-      }
-      if (currentEvent) {
-        query = query.eq('event_name', currentEvent);
-      }
+      if (studentIds.length > 0) query = query.contains('student_ids', studentIds);
+      if (rabbiIds.length > 0) query = query.contains('rabbi_ids', rabbiIds);
+      if (currentEvent) query = query.eq('event_name', currentEvent);
 
       const { data, error } = await query;
       if (!error) setPhotos(data || []);
@@ -78,7 +70,6 @@ export default function GalleryPage({ searchParams }: Props) {
     getPhotos();
   }, [params.studentId, params.rabbiId, params.event]);
 
-  // 3. Infinite Scroll Observer
   useEffect(() => {
     if (loading) return;
     const observer = new IntersectionObserver(
@@ -93,42 +84,43 @@ export default function GalleryPage({ searchParams }: Props) {
     return () => observer.disconnect();
   }, [loading, visibleCount, photos.length]);
 
-  // Handle Event Dropdown Change
   const handleEventChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
     const urlParams = new URLSearchParams(window.location.search);
-    
     if (val) urlParams.set('event', val);
     else urlParams.delete('event');
-    
     router.push(`/?${urlParams.toString()}`);
   };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-      {activePhoto && (
-        <Lightbox src={activePhoto} eventName={activeEvent} onClose={() => setActivePhoto(null)} />
+      {/* FULL LIGHTBOX CONFIGURATION */}
+      {selectedPhoto && (
+        <Lightbox 
+          src={`${s3Prefix}${selectedPhoto.storage_path.split('/').map(s => encodeURIComponent(s)).join('/')}`} 
+          eventName={selectedPhoto.event_name} 
+          studentNames={selectedPhoto.student_names || []}
+          rabbiNames={selectedPhoto.rabbi_names || []}
+          onClose={() => setSelectedPhoto(null)} 
+        />
       )}
 
-      {isMatchMakerOpen && (
-        <MultiSearchModal onClose={() => setIsMatchMakerOpen(false)} />
-      )}
+      {isMatchMakerOpen && <MultiSearchModal onClose={() => setIsMatchMakerOpen(false)} />}
 
       <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200 px-6 py-4 shadow-sm">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <h1 className="text-xl font-black tracking-tight text-blue-900 cursor-pointer" onClick={() => window.location.href='/'}>
+          <h1 className="text-xl font-black tracking-tight text-blue-900 cursor-pointer" onClick={() => router.push('/')}>
             SHRAGA <span className="text-slate-400 font-light">AI</span>
           </h1>
 
           <div className="flex flex-wrap items-center justify-center md:justify-end gap-3 w-full md:w-auto">
             <button 
               onClick={() => setIsMatchMakerOpen(true)}
-              className="bg-blue-600 text-white px-5 py-2 rounded-full text-xs font-bold hover:bg-blue-700 transition-all flex items-center gap-2 whitespace-nowrap shadow-md active:scale-95"
+              className="bg-blue-600 text-white px-5 py-2 rounded-full text-xs font-bold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-md active:scale-95"
             >
               🔍 Find Together
             </button>
             
-            {/* Event Dropdown Filter */}
             <div className="relative">
               <select 
                 value={currentEvent}
@@ -148,7 +140,7 @@ export default function GalleryPage({ searchParams }: Props) {
             
             {(studentIds.length > 0 || rabbiIds.length > 0 || currentEvent) && (
               <button 
-                onClick={() => window.location.href='/'} 
+                onClick={() => router.push('/')} 
                 className="text-xs font-bold text-red-500 px-3 py-2 hover:bg-red-50 rounded-full transition-colors"
               >
                 Clear
@@ -175,7 +167,7 @@ export default function GalleryPage({ searchParams }: Props) {
                 return (
                   <div 
                     key={photo.storage_path} 
-                    onClick={() => { setActivePhoto(fullUrl); setActiveEvent(photo.event_name); }}
+                    onClick={() => setSelectedPhoto(photo)}
                     className="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all border border-slate-200 overflow-hidden cursor-zoom-in"
                   >
                     <div className="relative aspect-[4/5] bg-slate-100">
@@ -184,20 +176,13 @@ export default function GalleryPage({ searchParams }: Props) {
                     <div className="p-4">
                       <p className="text-[10px] text-slate-400 uppercase font-bold mb-2">{photo.event_name}</p>
                       <div className="flex flex-wrap gap-1.5">
-                        {Array.from(new Set(photo.student_ids || [])).map((id) => (
+                        {/* Display Names if they exist, otherwise fallback to IDs */}
+                        {(photo.student_names || photo.student_ids || []).map((item, idx) => (
                           <span 
-                            key={`s-${id}`} 
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded border ${studentIds.includes(id) ? 'bg-blue-600 text-white border-blue-700' : 'bg-blue-50 text-blue-700 border-blue-100'}`}
+                            key={`s-${idx}`} 
+                            className="text-[10px] font-bold px-2 py-0.5 rounded border bg-blue-50 text-blue-700 border-blue-100"
                           >
-                            #{id}
-                          </span>
-                        ))}
-                        {Array.from(new Set(photo.rabbi_ids || [])).map((id) => (
-                          <span 
-                            key={`r-${id}`} 
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded border ${rabbiIds.includes(id) ? 'bg-amber-600 text-white border-amber-700' : 'bg-amber-50 text-amber-800 border-amber-100'}`}
-                          >
-                            #R{id}
+                            {item}
                           </span>
                         ))}
                       </div>
