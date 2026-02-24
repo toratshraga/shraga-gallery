@@ -13,35 +13,46 @@ export default function Lightbox({ src, eventName, onClose }: LightboxProps) {
 
   const handleDownload = async () => {
     setIsDownloading(true);
+    
+    // Create a clean filename (e.g., "Chanukah-Photo.jpg")
+    const fileName = `${eventName.replace(/\s+/g, '-') || 'Shraga-Photo'}.jpg`;
+
     try {
-      // 1. Fetch the image data (Requires S3 CORS to be configured)
-      const response = await fetch(src);
-      if (!response.ok) throw new Error('Network response was not ok');
+      // 1. Add a cache-buster to the URL to bypass old 'No-CORS' browser cache
+      const fetchUrl = `${src}${src.includes('?') ? '&' : '?'}t=${Date.now()}`;
       
+      const response = await fetch(fetchUrl, {
+        method: 'GET',
+        mode: 'cors',
+      });
+
+      if (!response.ok) throw new Error('CORS or Network issue');
+
       const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
       
-      // 2. Create a temporary local URL for the data
-      const url = window.URL.createObjectURL(blob);
-      
-      // 3. Create a hidden link and trigger the download
+      // 2. Trigger the download using the blob
       const link = document.createElement('a');
-      link.href = url;
-      
-      // Create a clean filename from the event name
-      const safeName = `${eventName.replace(/\s+/g, '-') || 'Shraga-Photo'}.jpg`;
-      link.setAttribute('download', safeName);
-      
+      link.href = blobUrl;
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       
-      // 4. Cleanup
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+      setIsDownloading(false);
     } catch (error) {
-      console.error("Download failed:", error);
-      // Fallback: Just open the image in a new tab if the browser blocks the fetch
-      window.open(src, '_blank');
-    } finally {
+      console.warn("CORS fetch failed, falling back to new tab download:", error);
+      
+      // 3. FALLBACK: Open in new tab for manual save
+      // We try the 'download' attribute here, but browsers usually ignore it for cross-origin S3 links
+      const fallbackLink = document.createElement('a');
+      fallbackLink.href = src;
+      fallbackLink.target = '_blank';
+      fallbackLink.download = fileName;
+      fallbackLink.click();
+      
       setIsDownloading(false);
     }
   };
@@ -67,9 +78,14 @@ export default function Lightbox({ src, eventName, onClose }: LightboxProps) {
 
       {/* Info & Actions */}
       <div className="mt-8 flex flex-col items-center gap-4">
-        <p className="text-white/60 text-sm font-bold tracking-widest uppercase">
-          {eventName || 'General Gallery'}
-        </p>
+        <div className="text-center">
+          <p className="text-white/60 text-[10px] font-bold tracking-widest uppercase mb-1">
+            {eventName || 'General Gallery'}
+          </p>
+          <p className="text-white/30 text-[9px]">
+            If download opens a new tab, right-click and "Save Image As"
+          </p>
+        </div>
         
         <div className="flex gap-4">
           <button 
@@ -87,7 +103,7 @@ export default function Lightbox({ src, eventName, onClose }: LightboxProps) {
               </span>
             ) : (
               <>
-                <span>⬇</span>
+                <span className="text-lg">⬇</span>
                 <span>Download Photo</span>
               </>
             )}
