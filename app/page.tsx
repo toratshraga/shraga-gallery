@@ -31,15 +31,17 @@ export default function GalleryPage({ searchParams }: Props) {
   const isParentView = studentIds.length === 1 && rabbiIds.length === 0 && !currentEvent;
 
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [events, setEvents] = useState<string[]>([]); // RESTORED
   const [loading, setLoading] = useState(true);
   const [visibleCount, setVisibleCount] = useState(50);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
-  const [isMatchMakerOpen, setIsMatchMakerOpen] = useState(false);
+  const [isMatchMakerOpen, setIsMatchMakerOpen] = useState(false); // RESTORED
   const [parentStudentName, setParentStudentName] = useState<string>('');
 
   const s3Prefix = "https://yeshiva-photos.s3.eu-west-2.amazonaws.com/";
   const observerRef = useRef<HTMLDivElement | null>(null);
 
+  // Fetch student name for parent banner
   useEffect(() => {
     if (isParentView && studentIds[0]) {
       async function getStudentName() {
@@ -49,6 +51,15 @@ export default function GalleryPage({ searchParams }: Props) {
       getStudentName();
     }
   }, [isParentView, studentIds]);
+
+  // RESTORED: Fetch unique event names for the filter dropdown
+  useEffect(() => {
+    async function getEventNames() {
+      const { data } = await supabase.from('unique_event_names').select('event_name');
+      if (data) setEvents(data.map(e => e.event_name));
+    }
+    getEventNames();
+  }, []);
 
   useEffect(() => {
     async function getPhotos() {
@@ -121,6 +132,9 @@ export default function GalleryPage({ searchParams }: Props) {
         />
       )}
 
+      {/* RESTORED: MultiSearch Modal */}
+      {isMatchMakerOpen && <MultiSearchModal onClose={() => setIsMatchMakerOpen(false)} />}
+
       <header className="sticky top-0 z-30 bg-white border-b-4 border-[#003366] px-4 py-4 shadow-md">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className={`flex items-center gap-4 ${!isParentView ? 'cursor-pointer' : ''}`} onClick={() => !isParentView && router.push('/')}>
@@ -130,9 +144,16 @@ export default function GalleryPage({ searchParams }: Props) {
               <span className="text-[9px] md:text-[11px] font-bold text-[#C5A059] uppercase mt-1">Official Photo Gallery</span>
             </div>
           </div>
+          
+          {/* RESTORED: Full Search Tools (Hidden for Parents) */}
           {!isParentView && (
             <div className="hidden lg:flex items-center gap-3">
-              <button onClick={() => setIsMatchMakerOpen(true)} className="bg-[#C5A059] text-white px-5 py-2 rounded text-xs font-bold shadow-md">Multi-Search</button>
+              <button 
+                onClick={() => setIsMatchMakerOpen(true)} 
+                className="bg-[#C5A059] text-white px-5 py-2 rounded text-xs font-bold shadow-md hover:brightness-110 transition-all"
+              >
+                Multi-Search
+              </button>
               <AutocompleteSearch table="students" placeholder="Search Students..." />
               <AutocompleteSearch table="rabbis" placeholder="Search Rabbis..." />
             </div>
@@ -141,16 +162,38 @@ export default function GalleryPage({ searchParams }: Props) {
       </header>
 
       <main className="max-w-7xl mx-auto p-4 md:p-10">
+        
+        {/* RESTORED/REFINED: Event Filter (Hidden for parents) */}
+        {!isParentView && (
+          <div className="mb-10 flex justify-end">
+            <select 
+              value={currentEvent} 
+              onChange={(e) => {
+                const url = new URL(window.location.href);
+                if (e.target.value) url.searchParams.set('event', e.target.value);
+                else url.searchParams.delete('event');
+                router.push(url.pathname + url.search);
+              }}
+              className="bg-white border border-slate-200 text-[#003366] text-sm font-bold rounded-lg px-4 py-2 shadow-sm focus:ring-2 focus:ring-[#C5A059] outline-none"
+            >
+              <option value="">All Events</option>
+              {events.map((e) => (
+                <option key={e} value={e}>{e}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {isParentView && (
           <div className="mb-12">
             <div className="bg-[#003366] rounded-3xl py-20 md:py-32 px-6 text-center text-white shadow-2xl border-b-[12px] border-[#C5A059] relative overflow-hidden">
               <div className="relative z-10 max-w-4xl mx-auto">
-                <h2 className="text-4xl md:text-7xl font-serif font-extrabold leading-tight">Chag Kasher V’Samach</h2>
+                <h2 className="text-4xl md:text-7xl font-serif font-extrabold leading-tight">Wishing you a Chag Kasher V’Sameach!</h2>
                 <div className="w-20 h-1 bg-[#C5A059] mx-auto my-8"></div>
                 <p className="text-lg md:text-3xl font-light">
                   We are proud to share snapshots of <span className="font-bold text-[#C5A059]">{parentStudentName || 'Your Son'}</span> 
                 </p>
-                <p className="mt-4 text-white/70 italic text-sm md:text-xl">(He may be hiding in the crowd but he's certainly there 😉)</p>
+                <p className="mt-4 text-white/70 italic text-sm md:text-xl">(He may be hiding in the crowd in some of the photo's but he's certainly there 😉)</p>
                 <div className="mt-16 inline-flex items-center gap-4 bg-white/10 px-6 py-2 rounded-full border border-white/20">
                   <span className="text-sm md:text-lg font-black">{photos.length} Photos</span>
                 </div>
@@ -182,7 +225,7 @@ export default function GalleryPage({ searchParams }: Props) {
         </div>
         {visibleCount < photos.length && <div ref={observerRef} className="h-20 w-full" />}
       </main>
-      <footer className="mt-20 py-10 bg-[#003366] text-white/50 text-center text-[10px] tracking-[.4em]">YESHIVAT TORAT SHRAGA  &bull; {new Date().getFullYear()}</footer>
+      <footer className="mt-20 py-10 bg-[#003366] text-white/50 text-center text-[10px] tracking-[.4em]">Yeshivat Torat Shraga &bull; {new Date().getFullYear()}</footer>
     </div>
   );
 }
