@@ -9,7 +9,7 @@ interface LightboxProps {
   rabbiNames?: string[];
   onClose: () => void;
   isParentView?: boolean;
-  parentStudentName?: string; // Add this
+  parentStudentName?: string; // ADDED THIS LINE
 }
 
 export default function Lightbox({ 
@@ -18,19 +18,20 @@ export default function Lightbox({
   studentNames = [], 
   rabbiNames = [], 
   onClose,
-  isParentView
+  isParentView,
+  parentStudentName // ADDED THIS LINE
 }: LightboxProps) {
   const [isDownloading, setIsDownloading] = useState(false);
 
-const handleDownload = async () => {
-  setIsDownloading(true);
-  try {
-    let fileName = '';
-    if (isParentView) {
-      // Use the specific student being filtered, even if they aren't the first tag
-      const studentName = parentStudentName || (studentNames.length > 0 ? studentNames[0] : "Student");
-      fileName = `${studentName} - ${eventName}`;
-    } else {
+  const handleDownload = async () => {
+    setIsDownloading(true);
+    try {
+      let fileName = '';
+      if (isParentView) {
+        // FIX: Priority is the filtered student name, then the first tag
+        const studentName = parentStudentName || (studentNames.length > 0 ? studentNames[0] : "Student");
+        fileName = `${studentName} - ${eventName}`;
+      } else {
         const formattedRabbis = rabbiNames.map(name => `R-${name.split(' ')[0]}`);
         const formattedStudents = studentNames.map(name => name.split(' ')[0]);
         const allPeople = [...formattedRabbis, ...formattedStudents];
@@ -54,6 +55,7 @@ const handleDownload = async () => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
     } catch (error) {
+      console.error("Download failed:", error);
       window.open(src, '_blank');
     } finally {
       setIsDownloading(false);

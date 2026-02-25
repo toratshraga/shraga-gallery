@@ -31,17 +31,16 @@ export default function GalleryPage({ searchParams }: Props) {
   const isParentView = studentIds.length === 1 && rabbiIds.length === 0 && !currentEvent;
 
   const [photos, setPhotos] = useState<Photo[]>([]);
-  const [events, setEvents] = useState<string[]>([]); // RESTORED
+  const [events, setEvents] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [visibleCount, setVisibleCount] = useState(50);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
-  const [isMatchMakerOpen, setIsMatchMakerOpen] = useState(false); // RESTORED
+  const [isMatchMakerOpen, setIsMatchMakerOpen] = useState(false);
   const [parentStudentName, setParentStudentName] = useState<string>('');
 
   const s3Prefix = "https://yeshiva-photos.s3.eu-west-2.amazonaws.com/";
   const observerRef = useRef<HTMLDivElement | null>(null);
 
-  // Fetch student name for parent banner
   useEffect(() => {
     if (isParentView && studentIds[0]) {
       async function getStudentName() {
@@ -52,7 +51,6 @@ export default function GalleryPage({ searchParams }: Props) {
     }
   }, [isParentView, studentIds]);
 
-  // RESTORED: Fetch unique event names for the filter dropdown
   useEffect(() => {
     async function getEventNames() {
       const { data } = await supabase.from('unique_event_names').select('event_name');
@@ -86,18 +84,15 @@ export default function GalleryPage({ searchParams }: Props) {
     return () => observer.disconnect();
   }, [loading, visibleCount, photos.length]);
 
-const handleDownload = async (e: React.MouseEvent, photo: Photo) => {
+  const handleDownload = async (e: React.MouseEvent, photo: Photo) => {
     e.stopPropagation();
     try {
       const fullUrl = `${s3Prefix}${photo.storage_path.split('/').map(s => encodeURIComponent(s)).join('/')}`;
       let fileName = '';
-      
       if (isParentView) {
-        // PRIORITY: Use the name of the student being filtered for
         const studentName = parentStudentName || (photo.student_names?.[0] || 'Student');
         fileName = `${studentName} - ${photo.event_name}`;
       } else {
-        // Standard naming for general gallery
         const formattedRabbis = (photo.rabbi_names || []).map(name => `R-${name.split(' ')[0]}`);
         const formattedStudents = (photo.student_names || []).map(name => name.split(' ')[0]);
         const allPeople = [...formattedRabbis, ...formattedStudents];
@@ -106,12 +101,9 @@ const handleDownload = async (e: React.MouseEvent, photo: Photo) => {
       }
 
       const finalFileName = fileName.replace(/[/\\?%*:|"<>]/g, '-').trim() + '.jpg';
-      
-      // Fetch with cache-buster to ensure CORS headers are fresh
       const response = await fetch(`${fullUrl}?t=${Date.now()}`);
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
-      
       const link = document.createElement('a');
       link.href = blobUrl;
       link.download = finalFileName;
@@ -133,12 +125,11 @@ const handleDownload = async (e: React.MouseEvent, photo: Photo) => {
           studentNames={selectedPhoto.student_names || []}
           rabbiNames={selectedPhoto.rabbi_names || []}
           isParentView={isParentView}
-          parentStudentName={parentStudentName} // Add this new prop
+          parentStudentName={parentStudentName} // ADDED THIS TO FIX THE BUILD ERROR
           onClose={() => setSelectedPhoto(null)} 
         />
       )}
 
-      {/* RESTORED: MultiSearch Modal */}
       {isMatchMakerOpen && <MultiSearchModal onClose={() => setIsMatchMakerOpen(false)} />}
 
       <header className="sticky top-0 z-30 bg-white border-b-4 border-[#003366] px-4 py-4 shadow-md">
@@ -150,16 +141,9 @@ const handleDownload = async (e: React.MouseEvent, photo: Photo) => {
               <span className="text-[9px] md:text-[11px] font-bold text-[#C5A059] uppercase mt-1">Official Photo Gallery</span>
             </div>
           </div>
-          
-          {/* RESTORED: Full Search Tools (Hidden for Parents) */}
           {!isParentView && (
             <div className="hidden lg:flex items-center gap-3">
-              <button 
-                onClick={() => setIsMatchMakerOpen(true)} 
-                className="bg-[#C5A059] text-white px-5 py-2 rounded text-xs font-bold shadow-md hover:brightness-110 transition-all"
-              >
-                Multi-Search
-              </button>
+              <button onClick={() => setIsMatchMakerOpen(true)} className="bg-[#C5A059] text-white px-5 py-2 rounded text-xs font-bold shadow-md hover:brightness-110">Multi-Search</button>
               <AutocompleteSearch table="students" placeholder="Search Students..." />
               <AutocompleteSearch table="rabbis" placeholder="Search Rabbis..." />
             </div>
@@ -168,24 +152,16 @@ const handleDownload = async (e: React.MouseEvent, photo: Photo) => {
       </header>
 
       <main className="max-w-7xl mx-auto p-4 md:p-10">
-        
-        {/* RESTORED/REFINED: Event Filter (Hidden for parents) */}
         {!isParentView && (
           <div className="mb-10 flex justify-end">
-            <select 
-              value={currentEvent} 
-              onChange={(e) => {
-                const url = new URL(window.location.href);
-                if (e.target.value) url.searchParams.set('event', e.target.value);
-                else url.searchParams.delete('event');
-                router.push(url.pathname + url.search);
-              }}
-              className="bg-white border border-slate-200 text-[#003366] text-sm font-bold rounded-lg px-4 py-2 shadow-sm focus:ring-2 focus:ring-[#C5A059] outline-none"
-            >
+            <select value={currentEvent} onChange={(e) => {
+              const url = new URL(window.location.href);
+              if (e.target.value) url.searchParams.set('event', e.target.value);
+              else url.searchParams.delete('event');
+              router.push(url.pathname + url.search);
+            }} className="bg-white border border-slate-200 text-[#003366] text-sm font-bold rounded-lg px-4 py-2 shadow-sm">
               <option value="">All Events</option>
-              {events.map((e) => (
-                <option key={e} value={e}>{e}</option>
-              ))}
+              {events.map((e) => <option key={e} value={e}>{e}</option>)}
             </select>
           </div>
         )}
@@ -194,12 +170,12 @@ const handleDownload = async (e: React.MouseEvent, photo: Photo) => {
           <div className="mb-12">
             <div className="bg-[#003366] rounded-3xl py-20 md:py-32 px-6 text-center text-white shadow-2xl border-b-[12px] border-[#C5A059] relative overflow-hidden">
               <div className="relative z-10 max-w-4xl mx-auto">
-                <h2 className="text-4xl md:text-7xl font-serif font-extrabold leading-tight">Wishing you a Chag Kasher V’Sameach!</h2>
+                <h2 className="text-4xl md:text-7xl font-serif font-extrabold leading-tight">Wishing you a Chag Kasher V’Sameach</h2>
                 <div className="w-20 h-1 bg-[#C5A059] mx-auto my-8"></div>
                 <p className="text-lg md:text-3xl font-light">
                   We are proud to share snapshots of <span className="font-bold text-[#C5A059]">{parentStudentName || 'Your Son'}</span> 
                 </p>
-                <p className="mt-4 text-white/70 italic text-sm md:text-xl">(He may be hiding in the crowd in some of the photo's but he's certainly there 😉)</p>
+                <p className="mt-4 text-white/70 italic text-sm md:text-xl">(He may be hiding in the crowd in some of the photos but he's certainly there 😉)</p>
                 <div className="mt-16 inline-flex items-center gap-4 bg-white/10 px-6 py-2 rounded-full border border-white/20">
                   <span className="text-sm md:text-lg font-black">{photos.length} Photos</span>
                 </div>
@@ -231,7 +207,7 @@ const handleDownload = async (e: React.MouseEvent, photo: Photo) => {
         </div>
         {visibleCount < photos.length && <div ref={observerRef} className="h-20 w-full" />}
       </main>
-      <footer className="mt-20 py-10 bg-[#003366] text-white/50 text-center text-[10px] tracking-[.4em]">Yeshivat Torat Shraga &bull; {new Date().getFullYear()}</footer>
+      <footer className="mt-20 py-10 bg-[#003366] text-white/50 text-center text-[10px] uppercase tracking-[.4em]">Yeshivat Torat Shraga &bull; {new Date().getFullYear()}</footer>
     </div>
   );
 }
