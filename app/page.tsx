@@ -86,16 +86,18 @@ export default function GalleryPage({ searchParams }: Props) {
     return () => observer.disconnect();
   }, [loading, visibleCount, photos.length]);
 
-  const handleDownload = async (e: React.MouseEvent, photo: Photo) => {
+const handleDownload = async (e: React.MouseEvent, photo: Photo) => {
     e.stopPropagation();
     try {
       const fullUrl = `${s3Prefix}${photo.storage_path.split('/').map(s => encodeURIComponent(s)).join('/')}`;
       let fileName = '';
       
       if (isParentView) {
-        const primaryName = parentStudentName || (photo.student_names?.[0] || 'Student');
-        fileName = `${primaryName} - ${photo.event_name}`;
+        // PRIORITY: Use the name of the student being filtered for
+        const studentName = parentStudentName || (photo.student_names?.[0] || 'Student');
+        fileName = `${studentName} - ${photo.event_name}`;
       } else {
+        // Standard naming for general gallery
         const formattedRabbis = (photo.rabbi_names || []).map(name => `R-${name.split(' ')[0]}`);
         const formattedStudents = (photo.student_names || []).map(name => name.split(' ')[0]);
         const allPeople = [...formattedRabbis, ...formattedStudents];
@@ -104,9 +106,12 @@ export default function GalleryPage({ searchParams }: Props) {
       }
 
       const finalFileName = fileName.replace(/[/\\?%*:|"<>]/g, '-').trim() + '.jpg';
+      
+      // Fetch with cache-buster to ensure CORS headers are fresh
       const response = await fetch(`${fullUrl}?t=${Date.now()}`);
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
+      
       const link = document.createElement('a');
       link.href = blobUrl;
       link.download = finalFileName;
@@ -128,6 +133,7 @@ export default function GalleryPage({ searchParams }: Props) {
           studentNames={selectedPhoto.student_names || []}
           rabbiNames={selectedPhoto.rabbi_names || []}
           isParentView={isParentView}
+          parentStudentName={parentStudentName} // Add this new prop
           onClose={() => setSelectedPhoto(null)} 
         />
       )}

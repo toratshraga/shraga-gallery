@@ -9,6 +9,7 @@ interface LightboxProps {
   rabbiNames?: string[];
   onClose: () => void;
   isParentView?: boolean;
+  parentStudentName?: string; // Add this
 }
 
 export default function Lightbox({ 
@@ -21,14 +22,15 @@ export default function Lightbox({
 }: LightboxProps) {
   const [isDownloading, setIsDownloading] = useState(false);
 
-  const handleDownload = async () => {
-    setIsDownloading(true);
-    try {
-      let fileName = '';
-      if (isParentView) {
-        const primaryName = studentNames.length > 0 ? studentNames[0] : "Student";
-        fileName = `${primaryName} - ${eventName}`;
-      } else {
+const handleDownload = async () => {
+  setIsDownloading(true);
+  try {
+    let fileName = '';
+    if (isParentView) {
+      // Use the specific student being filtered, even if they aren't the first tag
+      const studentName = parentStudentName || (studentNames.length > 0 ? studentNames[0] : "Student");
+      fileName = `${studentName} - ${eventName}`;
+    } else {
         const formattedRabbis = rabbiNames.map(name => `R-${name.split(' ')[0]}`);
         const formattedStudents = studentNames.map(name => name.split(' ')[0]);
         const allPeople = [...formattedRabbis, ...formattedStudents];
