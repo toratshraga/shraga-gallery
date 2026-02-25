@@ -121,7 +121,7 @@ export default function GalleryPage({ searchParams }: Props) {
             <img 
               src="/logo.png" 
               alt="Yeshivat Torat Shraga" 
-              className={`h-12 md:h-20 w-auto object-contain transition-transform ${!isParentView ? 'group-hover:scale-105' : ''}`}
+              className={`h-10 md:h-16 w-auto object-contain transition-transform ${!isParentView ? 'group-hover:scale-105' : ''}`}
             />
             <div className="h-10 w-px bg-slate-200 hidden sm:block"></div>
             <div className="flex flex-col">
@@ -151,32 +151,30 @@ export default function GalleryPage({ searchParams }: Props) {
 
       <main className="max-w-7xl mx-auto p-4 md:p-10">
         
+        {/* COMPACT PARENT BANNER */}
         {isParentView && (
-          <div className="mb-12 animate-in fade-in zoom-in-95 duration-1000">
-            <div className="bg-[#003366] rounded-3xl p-8 md:p-24 text-center text-white shadow-2xl border-b-[16px] border-[#C5A059] relative overflow-hidden">
+          <div className="mb-10 animate-in fade-in slide-in-from-top-4 duration-700">
+            <div className="bg-[#003366] rounded-2xl p-6 md:p-10 text-center text-white shadow-xl border-b-8 border-[#C5A059] relative overflow-hidden">
               <div className="absolute inset-0 opacity-5 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/pinstriped-suit.png')]"></div>
               
-              <div className="relative z-10">
-                <p className="text-[#C5A059] font-serif italic text-xl md:text-4xl mb-4 md:mb-8">
-                  Wishing you and your family a
-                </p>
-                <h2 className="text-5xl md:text-9xl font-serif font-extrabold mb-8 md:mb-14 tracking-tight leading-tight">
-                  Chag Kasher <br className="md:hidden" /> V’Samach
-                </h2>
-                <div className="w-24 md:w-48 h-1 bg-[#C5A059] mx-auto mb-8 md:mb-14"></div>
-                <p className="text-white/95 text-lg md:text-4xl font-light max-w-5xl mx-auto leading-relaxed px-4">
-                  We are proud to share these snapshots of <br className="hidden md:block" />
-                  <span className="font-bold text-white border-b-4 border-[#C5A059] px-2">
-                    {parentStudentName || 'Your Son'}
-                  </span> 
-                  <br /> from his time here at <br className="md:hidden" />
-                  <span className="font-serif italic font-medium">Yeshivat Torat Shraga</span>.
-                </p>
-                {photos.length > 0 && (
-                  <div className="mt-10 md:mt-20 text-[10px] md:text-sm font-bold tracking-[.4em] uppercase text-[#C5A059] bg-white/10 inline-block px-8 py-3 rounded-full border border-white/20">
-                    {photos.length} High-Resolution Memories
+              <div className="relative z-10 flex flex-col md:flex-row items-center justify-center gap-4 md:gap-12">
+                <div className="text-center md:text-left">
+                  <h2 className="text-2xl md:text-4xl font-serif font-extrabold tracking-tight">
+                    Chag Kasher V’Samach
+                  </h2>
+                  <p className="text-[#C5A059] font-medium text-sm md:text-lg italic mt-1">
+                    Memories of <span className="font-bold border-b-2 border-[#C5A059]/50">{parentStudentName || 'Your Son'}</span>
+                  </p>
+                </div>
+                
+                <div className="h-px w-12 md:h-12 md:w-px bg-white/20 hidden md:block"></div>
+
+                <div className="flex flex-col items-center">
+                  <span className="text-[10px] font-bold tracking-[.3em] uppercase text-white/60 mb-1">Gallery Count</span>
+                  <div className="text-xl md:text-2xl font-black text-[#C5A059] tabular-nums">
+                    {photos.length} Photos
                   </div>
-                )}
+                </div>
               </div>
             </div>
           </div>
