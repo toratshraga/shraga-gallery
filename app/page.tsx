@@ -28,7 +28,6 @@ export default function GalleryPage({ searchParams }: Props) {
   const rabbiIds = params.rabbiId ? params.rabbiId.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
   const currentEvent = params.event || '';
 
-  // PARENT VIEW: personalized if exactly one student is selected and no other filters
   const isParentView = studentIds.length === 1 && rabbiIds.length === 0 && !currentEvent;
 
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -42,7 +41,6 @@ export default function GalleryPage({ searchParams }: Props) {
   const s3Prefix = "https://yeshiva-photos.s3.eu-west-2.amazonaws.com/";
   const observerRef = useRef<HTMLDivElement | null>(null);
 
-  // 1. Fetch Student Name for Parent Banner
   useEffect(() => {
     if (isParentView && studentIds[0]) {
       async function getStudentName() {
@@ -57,7 +55,6 @@ export default function GalleryPage({ searchParams }: Props) {
     }
   }, [isParentView, studentIds]);
 
-  // 2. Fetch Event Names
   useEffect(() => {
     if (isParentView) return;
     async function getEventNames() {
@@ -67,17 +64,14 @@ export default function GalleryPage({ searchParams }: Props) {
     getEventNames();
   }, [isParentView]);
 
-  // 3. Main Fetch Photo Query
   useEffect(() => {
     async function getPhotos() {
       setLoading(true);
       setVisibleCount(50); 
       let query = supabase.from('gallery_display_view').select('*').order('created_at', { ascending: false });
-
       if (studentIds.length > 0) query = query.contains('student_ids', studentIds);
       if (rabbiIds.length > 0) query = query.contains('rabbi_ids', rabbiIds);
       if (currentEvent) query = query.eq('event_name', currentEvent);
-
       const { data, error } = await query;
       if (!error) setPhotos(data || []);
       setLoading(false);
@@ -85,7 +79,6 @@ export default function GalleryPage({ searchParams }: Props) {
     getPhotos();
   }, [params.studentId, params.rabbiId, params.event]);
 
-  // 4. Infinite Scroll
   useEffect(() => {
     if (loading) return;
     const observer = new IntersectionObserver((entries) => {
@@ -113,35 +106,19 @@ export default function GalleryPage({ searchParams }: Props) {
 
       <header className="sticky top-0 z-30 bg-white border-b-4 border-[#003366] px-4 md:px-8 py-4 shadow-md">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          
           <div 
             className={`flex items-center gap-4 md:gap-6 ${!isParentView ? 'cursor-pointer group' : 'cursor-default'}`} 
             onClick={() => !isParentView && router.push('/')}
           >
-            <img 
-              src="/logo.png" 
-              alt="Yeshivat Torat Shraga" 
-              className={`h-10 md:h-16 w-auto object-contain transition-transform ${!isParentView ? 'group-hover:scale-105' : ''}`}
-            />
-            <div className="h-10 w-px bg-slate-200 hidden sm:block"></div>
+            <img src="/logo.png" alt="YTS" className={`h-10 md:h-16 w-auto object-contain transition-transform ${!isParentView ? 'group-hover:scale-105' : ''}`} />
             <div className="flex flex-col">
-              <h1 className="text-sm md:text-xl font-serif font-black tracking-tight text-[#003366] leading-none uppercase">
-                Yeshivat Torat Shraga
-              </h1>
-              <span className="text-[9px] md:text-[11px] font-bold text-[#C5A059] tracking-[.15em] uppercase mt-1">
-                Official Photo Gallery
-              </span>
+              <h1 className="text-sm md:text-xl font-serif font-black tracking-tight text-[#003366] leading-none uppercase">Yeshivat Torat Shraga</h1>
+              <span className="text-[9px] md:text-[11px] font-bold text-[#C5A059] tracking-[.15em] uppercase mt-1">Official Photo Gallery</span>
             </div>
           </div>
-
           {!isParentView && (
             <div className="hidden lg:flex items-center gap-3">
-              <button 
-                onClick={() => setIsMatchMakerOpen(true)}
-                className="bg-[#C5A059] text-white px-5 py-2 rounded text-xs font-bold hover:brightness-110 transition-all shadow-md active:scale-95"
-              >
-                Multi-Search
-              </button>
+              <button onClick={() => setIsMatchMakerOpen(true)} className="bg-[#C5A059] text-white px-5 py-2 rounded text-xs font-bold hover:brightness-110 shadow-md">Multi-Search</button>
               <AutocompleteSearch table="students" placeholder="Search Students..." />
               <AutocompleteSearch table="rabbis" placeholder="Search Rabbis..." />
             </div>
@@ -151,29 +128,31 @@ export default function GalleryPage({ searchParams }: Props) {
 
       <main className="max-w-7xl mx-auto p-4 md:p-10">
         
-        {/* COMPACT PARENT BANNER */}
+        {/* RE-SIZED PARENT BANNER (Large but shows photos below) */}
         {isParentView && (
-          <div className="mb-10 animate-in fade-in slide-in-from-top-4 duration-700">
-            <div className="bg-[#003366] rounded-2xl p-6 md:p-10 text-center text-white shadow-xl border-b-8 border-[#C5A059] relative overflow-hidden">
+          <div className="mb-12 animate-in fade-in slide-in-from-top-6 duration-1000">
+            <div className="bg-[#003366] rounded-3xl py-20 md:py-32 px-6 md:px-12 text-center text-white shadow-2xl border-b-[12px] border-[#C5A059] relative overflow-hidden">
               <div className="absolute inset-0 opacity-5 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/pinstriped-suit.png')]"></div>
               
-              <div className="relative z-10 flex flex-col md:flex-row items-center justify-center gap-4 md:gap-12">
-                <div className="text-center md:text-left">
-                  <h2 className="text-2xl md:text-4xl font-serif font-extrabold tracking-tight">
-                    Chag Kasher V’Samach
-                  </h2>
-                  <p className="text-[#C5A059] font-medium text-sm md:text-lg italic mt-1">
-                    Memories of <span className="font-bold border-b-2 border-[#C5A059]/50">{parentStudentName || 'Your Son'}</span>
-                  </p>
-                </div>
+              <div className="relative z-10 max-w-4xl mx-auto">
+                <h2 className="text-4xl md:text-7xl font-serif font-extrabold tracking-tight leading-tight">
+                  Chag Kasher V’Samach
+                </h2>
+                <div className="w-20 h-1 bg-[#C5A059] mx-auto my-6 md:my-8"></div>
                 
-                <div className="h-px w-12 md:h-12 md:w-px bg-white/20 hidden md:block"></div>
+                <p className="text-lg md:text-3xl font-light leading-relaxed">
+                  We are proud to share these snapshots of <br className="hidden md:block" />
+                  <span className="font-bold text-[#C5A059]">{parentStudentName || 'Your Son'}</span> 
+                </p>
+                
+                <p className="mt-4 text-white/70 italic text-sm md:text-xl font-serif">
+                  (He may be hiding in the crowd but he's certainly there 😉)
+                </p>
 
-                <div className="flex flex-col items-center">
-                  <span className="text-[10px] font-bold tracking-[.3em] uppercase text-white/60 mb-1">Gallery Count</span>
-                  <div className="text-xl md:text-2xl font-black text-[#C5A059] tabular-nums">
-                    {photos.length} Photos
-                  </div>
+                <div className="mt-10 md:mt-16 inline-flex items-center gap-4 bg-white/10 px-6 py-2 rounded-full border border-white/20">
+                  <span className="text-[10px] md:text-xs font-bold tracking-widest uppercase text-[#C5A059]">Archive Collection</span>
+                  <div className="w-px h-4 bg-white/20"></div>
+                  <span className="text-sm md:text-lg font-black">{photos.length} Photos</span>
                 </div>
               </div>
             </div>
@@ -181,65 +160,40 @@ export default function GalleryPage({ searchParams }: Props) {
         )}
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-40">
-            <div className="w-12 h-12 border-4 border-[#003366]/20 border-t-[#C5A059] rounded-full animate-spin mb-6"></div>
-          </div>
-        ) : photos.length === 0 ? (
-          <div className="text-center py-40">
-            <p className="text-slate-300 font-serif italic text-2xl">No photos found for this selection.</p>
+          <div className="flex justify-center py-20">
+            <div className="w-10 h-10 border-4 border-[#003366]/10 border-t-[#C5A059] rounded-full animate-spin"></div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 md:gap-10">
-            {photos.slice(0, visibleCount).map((photo) => {
-              const fullUrl = `${s3Prefix}${photo.storage_path.split('/').map(s => encodeURIComponent(s)).join('/')}`;
-
-              return (
-                <div 
-                  key={photo.storage_path} 
-                  onClick={() => setSelectedPhoto(photo)}
-                  className="group bg-white rounded-xl shadow-sm hover:shadow-2xl transition-all duration-500 border border-slate-200 overflow-hidden cursor-zoom-in"
-                >
-                  <div className="relative aspect-[4/5] bg-slate-100 overflow-hidden">
-                    <img src={fullUrl} alt="" loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
-                    <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  </div>
-                  <div className="p-5 border-t border-slate-50">
-                    <p className="text-[10px] text-[#C5A059] uppercase font-black tracking-widest mb-3">{photo.event_name}</p>
-                    
-                    {/* Tags only visible if NOT in parent view */}
-                    {!isParentView && (
-                      <div className="flex flex-wrap gap-2">
-                        {photo.rabbi_names?.map((name, idx) => (
-                          <span key={`r-${idx}`} className="text-[10px] font-bold px-2.5 py-1 rounded bg-[#003366] text-white shadow-sm">R- {name}</span>
-                        ))}
-                        {photo.student_names?.map((name, idx) => (
-                          <span key={`s-${idx}`} className="text-[10px] font-bold px-2.5 py-1 rounded bg-slate-100 text-[#003366] border border-slate-200">{name}</span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
+            {photos.slice(0, visibleCount).map((photo) => (
+              <div key={photo.storage_path} onClick={() => setSelectedPhoto(photo)} className="group bg-white rounded-xl shadow-sm hover:shadow-xl transition-all border border-slate-200 overflow-hidden cursor-zoom-in">
+                <div className="relative aspect-[4/5] bg-slate-100 overflow-hidden">
+                  <img src={`${s3Prefix}${photo.storage_path.split('/').map(s => encodeURIComponent(s)).join('/')}`} alt="" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                  <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 </div>
-              );
-            })}
+                <div className="p-4">
+                  <p className="text-[10px] text-[#C5A059] uppercase font-black tracking-widest">{photo.event_name}</p>
+                  {!isParentView && (
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {photo.rabbi_names?.map((name, idx) => (
+                        <span key={`r-${idx}`} className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#003366] text-white">R- {name}</span>
+                      ))}
+                      {photo.student_names?.map((name, idx) => (
+                        <span key={`s-${idx}`} className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-[#003366] border border-slate-200">{name}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         )}
         
-        {visibleCount < photos.length && (
-          <div ref={observerRef} className="h-40 w-full flex items-center justify-center mt-10">
-            <span className="text-xs font-black text-slate-300 uppercase tracking-[.5em]">Scroll for more memories</span>
-          </div>
-        )}
+        {visibleCount < photos.length && <div ref={observerRef} className="h-20 w-full" />}
       </main>
 
-      <footer className="mt-32 py-20 bg-[#003366] text-white text-center">
-        <div className="max-w-7xl mx-auto px-6">
-          <img src="/logo.png" alt="Torat Shraga" className="h-16 mx-auto mb-6 brightness-0 invert opacity-50" />
-          <h3 className="font-serif font-bold text-2xl mb-4 tracking-wide uppercase">Yeshivat Torat Shraga</h3>
-          <div className="w-12 h-1 bg-[#C5A059] mx-auto mb-6"></div>
-          <p className="text-white/40 text-[10px] tracking-[.6em] uppercase">
-            Curated by Shraga AI &bull; {new Date().getFullYear()}
-          </p>
-        </div>
+      <footer className="mt-20 py-10 bg-[#003366] text-white/50 text-center text-[10px] tracking-[.4em] uppercase">
+        Made with Love by Yeshivat Torat Shraga &bull; {new Date().getFullYear()}
       </footer>
     </div>
   );
