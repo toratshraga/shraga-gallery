@@ -57,7 +57,7 @@ export default function GalleryPage({ searchParams }: Props) {
     }
   }, [isParentView, studentIds]);
 
-  // 2. Fetch Event Names (Hide if in parent view to keep them focused)
+  // 2. Fetch Event Names
   useEffect(() => {
     if (isParentView) return;
     async function getEventNames() {
@@ -114,7 +114,6 @@ export default function GalleryPage({ searchParams }: Props) {
       <header className="sticky top-0 z-30 bg-white border-b-4 border-[#003366] px-4 md:px-8 py-4 shadow-md">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           
-          {/* Logo Section - Link disabled for parents */}
           <div 
             className={`flex items-center gap-4 md:gap-6 ${!isParentView ? 'cursor-pointer group' : 'cursor-default'}`} 
             onClick={() => !isParentView && router.push('/')}
@@ -152,7 +151,6 @@ export default function GalleryPage({ searchParams }: Props) {
 
       <main className="max-w-7xl mx-auto p-4 md:p-10">
         
-        {/* Parent Banner */}
         {isParentView && (
           <div className="mb-12 animate-in fade-in zoom-in-95 duration-1000">
             <div className="bg-[#003366] rounded-3xl p-8 md:p-24 text-center text-white shadow-2xl border-b-[16px] border-[#C5A059] relative overflow-hidden">
@@ -187,7 +185,6 @@ export default function GalleryPage({ searchParams }: Props) {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-40">
             <div className="w-12 h-12 border-4 border-[#003366]/20 border-t-[#C5A059] rounded-full animate-spin mb-6"></div>
-            <p className="text-slate-400 font-bold text-xs uppercase tracking-[.3em]">Opening Archives...</p>
           </div>
         ) : photos.length === 0 ? (
           <div className="text-center py-40">
@@ -210,14 +207,18 @@ export default function GalleryPage({ searchParams }: Props) {
                   </div>
                   <div className="p-5 border-t border-slate-50">
                     <p className="text-[10px] text-[#C5A059] uppercase font-black tracking-widest mb-3">{photo.event_name}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {photo.rabbi_names?.map((name, idx) => (
-                        <span key={`r-${idx}`} className="text-[10px] font-bold px-2.5 py-1 rounded bg-[#003366] text-white shadow-sm">R- {name}</span>
-                      ))}
-                      {photo.student_names?.map((name, idx) => (
-                        <span key={`s-${idx}`} className="text-[10px] font-bold px-2.5 py-1 rounded bg-slate-100 text-[#003366] border border-slate-200">{name}</span>
-                      ))}
-                    </div>
+                    
+                    {/* Tags only visible if NOT in parent view */}
+                    {!isParentView && (
+                      <div className="flex flex-wrap gap-2">
+                        {photo.rabbi_names?.map((name, idx) => (
+                          <span key={`r-${idx}`} className="text-[10px] font-bold px-2.5 py-1 rounded bg-[#003366] text-white shadow-sm">R- {name}</span>
+                        ))}
+                        {photo.student_names?.map((name, idx) => (
+                          <span key={`s-${idx}`} className="text-[10px] font-bold px-2.5 py-1 rounded bg-slate-100 text-[#003366] border border-slate-200">{name}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
