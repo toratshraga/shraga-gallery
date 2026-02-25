@@ -90,6 +90,36 @@ export default function GalleryPage({ searchParams }: Props) {
     return () => observer.disconnect();
   }, [loading, visibleCount, photos.length]);
 
+  /**
+   * Updated Download Function
+   * Forces the browser to name the file based on the student and event.
+   */
+  const handleDownload = async (e: React.MouseEvent, photo: Photo) => {
+    e.stopPropagation();
+    try {
+      const fullUrl = `${s3Prefix}${photo.storage_path.split('/').map(s => encodeURIComponent(s)).join('/')}`;
+      const response = await fetch(fullUrl);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      const nameForFile = isParentView && parentStudentName ? parentStudentName : (photo.student_names?.[0] || 'Student');
+      const cleanEvent = photo.event_name.replace(/[/\\?%*:|"<>]/g, '-');
+      const cleanName = nameForFile.replace(/[/\\?%*:|"<>]/g, '-');
+
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `${cleanName} - ${cleanEvent}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error("Renamed download failed, falling back to direct link", err);
+      const fallbackUrl = `${s3Prefix}${photo.storage_path.split('/').map(s => encodeURIComponent(s)).join('/')}`;
+      window.open(fallbackUrl, '_blank');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans">
       {selectedPhoto && (
@@ -128,7 +158,6 @@ export default function GalleryPage({ searchParams }: Props) {
 
       <main className="max-w-7xl mx-auto p-4 md:p-10">
         
-        {/* RE-SIZED PARENT BANNER (Large but shows photos below) */}
         {isParentView && (
           <div className="mb-12 animate-in fade-in slide-in-from-top-6 duration-1000">
             <div className="bg-[#003366] rounded-3xl py-20 md:py-32 px-6 md:px-12 text-center text-white shadow-2xl border-b-[12px] border-[#C5A059] relative overflow-hidden">
@@ -166,7 +195,16 @@ export default function GalleryPage({ searchParams }: Props) {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
             {photos.slice(0, visibleCount).map((photo) => (
-              <div key={photo.storage_path} onClick={() => setSelectedPhoto(photo)} className="group bg-white rounded-xl shadow-sm hover:shadow-xl transition-all border border-slate-200 overflow-hidden cursor-zoom-in">
+              <div key={photo.storage_path} onClick={() => setSelectedPhoto(photo)} className="group bg-white rounded-xl shadow-sm hover:shadow-xl transition-all border border-slate-200 overflow-hidden cursor-zoom-in relative">
+                
+                {/* Your Existing Download Button with New Logic */}
+                <button 
+                  onClick={(e) => handleDownload(e, photo)}
+                  className="absolute top-3 right-3 z-20 bg-white/90 p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#C5A059] hover:text-white"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </button>
+
                 <div className="relative aspect-[4/5] bg-slate-100 overflow-hidden">
                   <img src={`${s3Prefix}${photo.storage_path.split('/').map(s => encodeURIComponent(s)).join('/')}`} alt="" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                   <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -193,7 +231,7 @@ export default function GalleryPage({ searchParams }: Props) {
       </main>
 
       <footer className="mt-20 py-10 bg-[#003366] text-white/50 text-center text-[10px] tracking-[.4em] uppercase">
-        Made with Love by Yeshivat Torat Shraga &bull; {new Date().getFullYear()}
+        Curated by Shraga AI &bull; {new Date().getFullYear()}
       </footer>
     </div>
   );
