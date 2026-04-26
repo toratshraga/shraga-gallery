@@ -125,7 +125,7 @@ export default function GalleryPage({ searchParams }: Props) {
           studentNames={selectedPhoto.student_names || []}
           rabbiNames={selectedPhoto.rabbi_names || []}
           isParentView={isParentView}
-          parentStudentName={parentStudentName} // ADDED THIS TO FIX THE BUILD ERROR
+          parentStudentName={parentStudentName}
           onClose={() => setSelectedPhoto(null)} 
         />
       )}
@@ -133,19 +133,30 @@ export default function GalleryPage({ searchParams }: Props) {
       {isMatchMakerOpen && <MultiSearchModal onClose={() => setIsMatchMakerOpen(false)} />}
 
       <header className="sticky top-0 z-30 bg-white border-b-4 border-[#003366] px-4 py-4 shadow-md">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className={`flex items-center gap-4 ${!isParentView ? 'cursor-pointer' : ''}`} onClick={() => !isParentView && router.push('/')}>
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-y-4">
+          <div 
+            className={`flex items-center gap-3 md:gap-4 ${!isParentView ? 'cursor-pointer' : ''}`} 
+            onClick={() => !isParentView && router.push('/')}
+          >
             <img src="/logo.png" alt="YTS" className="h-10 md:h-16 w-auto" />
             <div className="flex flex-col">
-              <h1 className="text-sm md:text-xl font-serif font-black text-[#003366] uppercase">Yeshivat Torat Shraga</h1>
-              <span className="text-[9px] md:text-[11px] font-bold text-[#C5A059] uppercase mt-1">Official Photo Gallery</span>
+              <h1 className="text-xs md:text-xl font-serif font-black text-[#003366] uppercase">Yeshivat Torat Shraga</h1>
+              <span className="text-[8px] md:text-[11px] font-bold text-[#C5A059] uppercase mt-1">Official Photo Gallery</span>
             </div>
           </div>
+
           {!isParentView && (
-            <div className="hidden lg:flex items-center gap-3">
-              <button onClick={() => setIsMatchMakerOpen(true)} className="bg-[#C5A059] text-white px-5 py-2 rounded text-xs font-bold shadow-md hover:brightness-110">Multi-Search</button>
-              <AutocompleteSearch table="students" placeholder="Search Students..." />
-              <AutocompleteSearch table="rabbis" placeholder="Search Rabbis..." />
+            <div className="flex flex-1 md:flex-none items-center justify-center md:justify-end gap-2 md:gap-3 min-w-full md:min-w-0">
+              <button 
+                onClick={() => setIsMatchMakerOpen(true)} 
+                className="bg-[#C5A059] text-white px-3 py-2 md:px-5 md:py-2 rounded text-[10px] md:text-xs font-bold shadow-md hover:brightness-110 shrink-0"
+              >
+                Multi-Search
+              </button>
+              <div className="flex gap-2 items-center flex-1 md:flex-none">
+                <AutocompleteSearch table="students" placeholder="Students..." />
+                <AutocompleteSearch table="rabbis" placeholder="Rabbis..." />
+              </div>
             </div>
           )}
         </div>
@@ -153,13 +164,17 @@ export default function GalleryPage({ searchParams }: Props) {
 
       <main className="max-w-7xl mx-auto p-4 md:p-10">
         {!isParentView && (
-          <div className="mb-10 flex justify-end">
-            <select value={currentEvent} onChange={(e) => {
-              const url = new URL(window.location.href);
-              if (e.target.value) url.searchParams.set('event', e.target.value);
-              else url.searchParams.delete('event');
-              router.push(url.pathname + url.search);
-            }} className="bg-white border border-slate-200 text-[#003366] text-sm font-bold rounded-lg px-4 py-2 shadow-sm">
+          <div className="mb-6 md:mb-10 flex justify-end">
+            <select 
+              value={currentEvent} 
+              onChange={(e) => {
+                const url = new URL(window.location.href);
+                if (e.target.value) url.searchParams.set('event', e.target.value);
+                else url.searchParams.delete('event');
+                router.push(url.pathname + url.search);
+              }} 
+              className="w-full md:w-auto bg-white border border-slate-200 text-[#003366] text-sm font-bold rounded-lg px-4 py-2 shadow-sm"
+            >
               <option value="">All Events</option>
               {events.map((e) => <option key={e} value={e}>{e}</option>)}
             </select>
@@ -168,37 +183,37 @@ export default function GalleryPage({ searchParams }: Props) {
 
         {isParentView && (
           <div className="mb-12">
-            <div className="bg-[#003366] rounded-3xl py-20 md:py-32 px-6 text-center text-white shadow-2xl border-b-[12px] border-[#C5A059] relative overflow-hidden">
+            <div className="bg-[#003366] rounded-3xl py-12 md:py-32 px-6 text-center text-white shadow-2xl border-b-[12px] border-[#C5A059] relative overflow-hidden">
               <div className="relative z-10 max-w-4xl mx-auto">
-                <h2 className="text-4xl md:text-7xl font-serif font-extrabold leading-tight">Wishing you a Chag Kasher V’Sameach</h2>
-                <div className="w-20 h-1 bg-[#C5A059] mx-auto my-8"></div>
-                <p className="text-lg md:text-3xl font-light">
+                <h2 className="text-3xl md:text-7xl font-serif font-extrabold leading-tight">Wishing you a Chag Kasher V’Sameach</h2>
+                <div className="w-16 md:w-20 h-1 bg-[#C5A059] mx-auto my-6 md:my-8"></div>
+                <p className="text-base md:text-3xl font-light">
                   We are proud to share snapshots of <span className="font-bold text-[#C5A059]">{parentStudentName || 'Your Son'}</span> 
                 </p>
-                <p className="mt-4 text-white/70 italic text-sm md:text-xl">(He may be hiding in the crowd in some of the photos but he's certainly there 😉)</p>
-                <div className="mt-16 inline-flex items-center gap-4 bg-white/10 px-6 py-2 rounded-full border border-white/20">
-                  <span className="text-sm md:text-lg font-black">{photos.length} Photos</span>
+                <p className="mt-4 text-white/70 italic text-xs md:text-xl">(He may be hiding in the crowd in some of the photos but he's certainly there 😉)</p>
+                <div className="mt-10 md:mt-16 inline-flex items-center gap-4 bg-white/10 px-6 py-2 rounded-full border border-white/20">
+                  <span className="text-xs md:text-lg font-black">{photos.length} Photos</span>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
           {photos.slice(0, visibleCount).map((photo) => (
             <div key={photo.storage_path} onClick={() => setSelectedPhoto(photo)} className="group bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden cursor-zoom-in relative">
-              <button onClick={(e) => handleDownload(e, photo)} className="absolute top-3 right-3 z-20 bg-white/90 p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#C5A059] hover:text-white">
+              <button onClick={(e) => handleDownload(e, photo)} className="absolute top-3 right-3 z-20 bg-white/90 p-2 rounded-full shadow-md md:opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#C5A059] hover:text-white">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               </button>
               <div className="aspect-[4/5] bg-slate-100 overflow-hidden">
-                <img src={`${s3Prefix}${photo.storage_path.split('/').map(s => encodeURIComponent(s)).join('/')}`} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                <img src={`${s3Prefix}${photo.storage_path.split('/').map(s => encodeURIComponent(s)).join('/')}`} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
               </div>
               <div className="p-4">
                 <p className="text-[10px] text-[#C5A059] uppercase font-black">{photo.event_name}</p>
                 {!isParentView && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {photo.rabbi_names?.map((name, i) => <span key={i} className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#003366] text-white">R- {name}</span>)}
-                    {photo.student_names?.map((name, i) => <span key={i} className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-[#003366] border">{name}</span>)}
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    {photo.rabbi_names?.map((name, i) => <span key={i} className="text-[9px] md:text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#003366] text-white">R- {name}</span>)}
+                    {photo.student_names?.map((name, i) => <span key={i} className="text-[9px] md:text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-[#003366] border">{name}</span>)}
                   </div>
                 )}
               </div>
@@ -207,7 +222,7 @@ export default function GalleryPage({ searchParams }: Props) {
         </div>
         {visibleCount < photos.length && <div ref={observerRef} className="h-20 w-full" />}
       </main>
-      <footer className="mt-20 py-10 bg-[#003366] text-white/50 text-center text-[10px] uppercase tracking-[.4em]">Yeshivat Torat Shraga &bull; {new Date().getFullYear()}</footer>
+      <footer className="mt-20 py-10 bg-[#003366] text-white/50 text-center text-[8px] md:text-[10px] uppercase tracking-[.4em]">Yeshivat Torat Shraga &bull; {new Date().getFullYear()}</footer>
     </div>
   );
 }
